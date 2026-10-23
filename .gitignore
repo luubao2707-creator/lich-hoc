@@ -1,0 +1,11 @@
+# Hệ điều hành / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+
+# Cấu hình Claude Code riêng từng máy
+.claude/settings.local.json
+
+# File sao lưu dữ liệu xuất từ app (chứa dữ liệu cá nhân)
+lichhoc-saoluu-*.json
