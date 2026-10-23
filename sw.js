@@ -1,6 +1,6 @@
 // Service worker: cache toàn bộ file tĩnh để chạy offline.
 // Mỗi lần sửa file tĩnh, tăng VERSION để máy người dùng tải bản mới.
-const VERSION = 'v4';
+const VERSION = 'v5';
 const CACHE = `lichhoc-${VERSION}`;
 
 const ASSETS = [
@@ -17,6 +17,9 @@ const ASSETS = [
   './js/backup.js',
   './js/ics.js',
   './js/gcal-import.js',
+  './js/gcal-plan.js',
+  './js/reminders.js',
+  './js/sync.js',
   './js/ui/dom.js',
   './js/ui/today.js',
   './js/ui/courses.js',
@@ -27,6 +30,7 @@ const ASSETS = [
   './js/ui/event-form.js',
   './js/ui/week.js',
   './js/ui/gcal-sheet.js',
+  './js/ui/server-section.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',
@@ -88,4 +92,17 @@ self.addEventListener('notificationclick', (event) => {
       return self.clients.openWindow(target);
     })
   );
+});
+
+// Thông báo đẩy từ máy chủ (gửi cả khi app đã tắt). iOS bắt buộc phải hiện thông báo cho mỗi lần push.
+self.addEventListener('push', (event) => {
+  let msg = {};
+  try { msg = event.data ? event.data.json() : {}; } catch { msg = { body: event.data ? event.data.text() : '' }; }
+  event.waitUntil(self.registration.showNotification(msg.title || 'Lịch Học', {
+    body: msg.body || '',
+    tag: msg.tag,
+    icon: 'icons/icon-192.png',
+    badge: 'icons/icon-192.png',
+    data: { url: msg.url || './#today' },
+  }));
 });

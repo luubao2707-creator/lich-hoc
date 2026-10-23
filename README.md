@@ -49,3 +49,9 @@ Cài đặt → Google Calendar → chọn file `.ics` hoặc `.zip` (Google Cal
 Đồng bộ một chiều: nhập lại để cập nhật, app giữ màu / giảng viên / nhắc việc đã đặt và xóa mục không còn trên Google.
 Hỗ trợ lặp hằng ngày / hằng tuần (kể cả N tuần/lần, UNTIL, COUNT), buổi bị hủy (EXDATE) và buổi bị dời (RECURRENCE-ID).
 Chưa hỗ trợ sự kiện cả ngày và lặp theo tháng / năm.
+
+## Máy chủ đồng bộ (tùy chọn)
+
+Thư mục `server/` là một Cloudflare Worker miễn phí: đồng bộ dữ liệu giữa các thiết bị, tự đọc lịch Google
+(link iCal bí mật) mỗi 5 phút, và gửi nhắc việc bằng Web Push kể cả khi app đã tắt.
+Cách triển khai: xem [server/README.md](server/README.md). App vẫn chạy bình thường khi không có máy chủ.

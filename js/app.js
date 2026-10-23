@@ -12,6 +12,7 @@ import { openDeadlineForm } from './ui/deadline-form.js';
 import { openEventForm } from './ui/event-form.js';
 import { openActionSheet, toast, inAppAlert } from './ui/dom.js';
 import * as notify from './notify.js';
+import { startSync, onStatus } from './sync.js';
 
 const VIEWS = { today: renderToday, week: renderWeek, courses: renderCourses, deadlines: renderDeadlines, settings: renderSettings };
 const view = document.getElementById('view');
@@ -91,6 +92,11 @@ async function start() {
     if (VIEWS[fromHash]) ctx.tab = fromHash;
     await ctx.reload();
     notify.startScheduler(() => ctx.data, inAppAlert);
+    // Đồng bộ máy chủ (nếu đã kết nối): nhận thay đổi → vẽ lại màn hình.
+    await startSync(() => ctx.reload());
+    onStatus(() => {
+      if (ctx.tab === 'settings' && !document.body.classList.contains('sheet-open')) render();
+    });
   } catch (err) {
     console.error(err);
     view.innerHTML = `<div class="empty">Không mở được cơ sở dữ liệu trên trình duyệt này.<br><small>${String(err?.message || err).replace(/</g, '&lt;')}</small></div>`;

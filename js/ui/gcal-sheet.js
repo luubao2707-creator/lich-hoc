@@ -7,6 +7,18 @@ import { describeRec } from '../schedule.js';
 import { fmtDate, weekdayOf, WEEKDAY_SHORT } from '../time.js';
 import { hasSampleData } from '../sample.js';
 
+/** Xem lại phân loại từ nội dung iCal (máy chủ đọc từ link bí mật). */
+export async function importCalendarText(ctx, text) {
+  let parsed;
+  try {
+    parsed = buildCandidates([{ name: 'Google Calendar', text }]);
+  } catch (err) {
+    alert('Không đọc được lịch: ' + err.message);
+    return;
+  }
+  openPreview(ctx, parsed, await hasSampleData());
+}
+
 /** Gọi khi người dùng chọn file (.ics / .zip). */
 export async function importCalendarFiles(ctx, fileList) {
   let parsed;

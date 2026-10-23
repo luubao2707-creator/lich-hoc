@@ -152,6 +152,34 @@ function parseRrule(v) {
   return r;
 }
 
+// ---------- Lọc nhanh ----------
+
+/**
+ * Bỏ các VEVENT chắc chắn đã qua trước khi phân tích kỹ (file Google chứa cả lịch sử nhiều năm;
+ * máy chủ Cloudflare gói miễn phí chỉ có ~10 ms CPU mỗi lần chạy).
+ * Chỉ dùng thao tác chuỗi nhanh; trường hợp không chắc thì giữ lại.
+ */
+function prefilter(text, cutoffKey, skipped) {
+  const cutoff = cutoffKey.replace(/-/g, '');
+  const parts = text.split('BEGIN:VEVENT');
+  const kept = [parts[0]];
+  for (let i = 1; i < parts.length; i++) {
+    const chunk = parts[i];
+    const start = /\nDTSTART[^:\n]*:(\d{8})/.exec(chunk)?.[1];
+    let old = false;
+    if (chunk.includes('\nRRULE:')) {
+      const until = /UNTIL=(\d{8})/.exec(chunk)?.[1];
+      old = !!until && until < cutoff && !/COUNT=/.test(chunk);
+    } else if (start && start < cutoff) {
+      const recId = /\nRECURRENCE-ID[^:\n]*:(\d{8})/.exec(chunk)?.[1];
+      old = !recId || recId < cutoff;
+    }
+    if (old) skipped.past++;
+    else kept.push(chunk);
+  }
+  return kept.join('BEGIN:VEVENT');
+}
+
 // ---------- Dựng danh sách ứng viên ----------
 
 /**
@@ -164,7 +192,7 @@ export function buildCandidates(files, today = todayKey()) {
   const cutoff = addDays(today, -PAST_DAYS);
 
   for (const file of files) {
-    const { calName, events } = parseIcs(file.text);
+    const { calName, events } = parseIcs(prefilter(file.text.replace(/\r\n?/g, '\n'), cutoff, skipped));
     const calendar = calName || file.name.replace(/\.ics$/i, '').replace(/^.*\//, '');
     const masters = new Map();
     const overrides = [];

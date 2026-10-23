@@ -6,7 +6,9 @@ import * as notify from '../notify.js';
 import { exportData, parseBackup, importData } from '../backup.js';
 import { mondayOf, fmtDate, minutesOf, todayKey, weekNumber, dateKey, diffDays, timeOf } from '../time.js';
 import { hasSampleData, clearSampleData } from '../sample.js';
-import { importCalendarFiles } from './gcal-sheet.js';
+import { importCalendarFiles, importCalendarText } from './gcal-sheet.js';
+import { serverSectionHTML, serverIcsHTML, bindServerSection } from './server-section.js';
+import { getConfig } from '../sync.js';
 import { removeAllImported } from '../gcal-import.js';
 
 const NOTIFY_TEXT = {
@@ -31,6 +33,7 @@ export async function renderSettings(root, ctx) {
   const sample = await hasSampleData();
   const week = weekNumber(todayKey(), settings.semesterStart);
   const nState = notify.status();
+  const server = await getConfig();
   const imported = ctx.data.courses.filter((c) => c.source === 'gcal').length + ctx.data.events.filter((e) => e.source === 'gcal').length;
   const stale = !settings.lastBackup || diffDays(todayKey(), dateKey(settings.lastBackup)) > 14;
 
@@ -56,10 +59,12 @@ export async function renderSettings(root, ctx) {
       </div>
     </section>
 
+    ${serverSectionHTML(server)}
+
     <section class="section">
       <h2 class="section-title">Nhắc việc</h2>
       <div class="card-group pad">
-        <p class="status-line"><span class="dot ${nState === 'granted' ? 'on' : ''}"></span>${esc(NOTIFY_TEXT[nState])}</p>
+        <p class="status-line"><span class="dot ${nState === 'granted' ? 'on' : ''}"></span>${esc(server?.pushEnabled ? 'Máy chủ đang gửi lời nhắc tới thiết bị này (kể cả khi app tắt).' : NOTIFY_TEXT[nState])}</p>
         ${nState === 'default' ? '<button type="button" class="btn btn-primary btn-block notify-enable">Bật thông báo</button>' : ''}
         <button type="button" class="btn btn-ghost btn-block notify-test">Gửi thử một lời nhắc</button>
         <p class="hint">Chọn "Nhắc trước 15 phút / 1 giờ / 1 ngày" trong từng môn học hoặc deadline.
@@ -87,7 +92,8 @@ export async function renderSettings(root, ctx) {
         <p class="hint">${settings.lastGcalImport
           ? `Lần nhập gần nhất: ${esc(fmtDate(dateKey(settings.lastGcalImport)))} ${esc(timeOf(settings.lastGcalImport))} · ${imported} mục đang có.`
           : 'Nhập lịch học và các lịch khác từ Google Calendar (đồng bộ một chiều, nhập lại để cập nhật).'}</p>
-        <label class="btn btn-primary btn-block file-btn">Chọn file .ics / .zip
+        ${serverIcsHTML(server)}
+        <label class="btn ${server?.ics?.configured ? 'btn-ghost' : 'btn-primary'} btn-block file-btn">Chọn file .ics / .zip
           <input type="file" class="gcal-import visually-hidden" tabindex="-1" multiple>
         </label>
         <details class="howto">
@@ -180,6 +186,9 @@ export async function renderSettings(root, ctx) {
       alert('Không khôi phục được: ' + err.message);
     }
   });
+
+  // ----- Máy chủ -----
+  bindServerSection(root, ctx, () => renderSettings(root, ctx), (text) => importCalendarText(ctx, text));
 
   // ----- Google Calendar -----
   root.querySelector('.gcal-import').addEventListener('change', async (e) => {

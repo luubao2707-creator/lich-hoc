@@ -1,0 +1,25 @@
+# Máy chủ đồng bộ cho Lịch Học (Cloudflare Worker + D1).
+# Hướng dẫn triển khai: xem server/README.md
+
+name = "lichhoc-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Chạy mỗi phút: gửi lời nhắc (Web Push) và đọc lại lịch Google mỗi 5 phút.
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "lichhoc"
+database_id = "1f4bace9-ad89-4758-948e-f8e033fbbbdd" # in ra từ: npx wrangler d1 create lichhoc
+
+[vars]
+# Các trang web được phép gọi API (cách nhau bởi dấu phẩy).
+ALLOWED_ORIGINS = "https://luubao2707-creator.github.io,http://localhost:8000"
+# Liên hệ gửi kèm thông báo đẩy (yêu cầu của Apple / Google).
+VAPID_SUBJECT = "https://luubao2707-creator.github.io/lich-hoc/"
+
+# Bí mật (KHÔNG ghi vào file này) – đặt bằng lệnh:
+#   npx wrangler secret put APP_TOKEN   → mật khẩu truy cập, bạn tự đặt
+#   npx wrangler secret put ICAL_URL    → "Địa chỉ bí mật ở định dạng iCal" của Google Calendar

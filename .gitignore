@@ -9,3 +9,8 @@ desktop.ini
 
 # File sao lưu dữ liệu xuất từ app (chứa dữ liệu cá nhân)
 lichhoc-saoluu-*.json
+
+# Máy chủ Cloudflare: bí mật khi chạy thử cục bộ, dữ liệu D1 cục bộ, thư viện
+server/.dev.vars
+server/.wrangler/
+node_modules/

@@ -505,3 +505,9 @@ form[data-google] .manual-only { display: none; }
 .imp-row + .imp-row { border-top: 1px solid var(--line); }
 .imp-main { flex: 1; min-width: 0; }
 .imp-row select { width: 118px; flex-shrink: 0; min-height: 44px; font-size: 15px; padding: 6px 26px 6px 10px; background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%; }
+
+/* ===== Máy chủ đồng bộ ===== */
+.dot.warn { background: var(--warn); }
+.status-line small { font-size: 13px; }
+.srv-sub { margin: 14px 2px 8px; }
+.srv-choice { display: grid; gap: 4px; }
