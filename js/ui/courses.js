@@ -1,7 +1,14 @@
 // Danh sách môn học (bản tối thiểu; lưới tuần sẽ thêm ở bản sau).
 
 import { esc } from './dom.js';
-import { sessionLabel } from '../schedule.js';
+import { sessionLabel, courseDateRange } from '../schedule.js';
+import { fmtDate } from '../time.js';
+
+function rangeText(c) {
+  const r = courseDateRange(c);
+  if (!r) return `Tuần ${c.weekFrom}–${c.weekTo}`;
+  return r.to ? `${fmtDate(r.from, { year: false })}–${fmtDate(r.to, { year: false })}` : `từ ${fmtDate(r.from, { year: false })}`;
+}
 
 export function renderCourses(root, ctx) {
   const { courses, settings } = ctx.data;
@@ -17,7 +24,7 @@ export function renderCourses(root, ctx) {
             <div class="dl-meta">${esc([c.room, c.teacher].filter(Boolean).join(' · '))}</div>
             <div class="sessions">${c.sessions.map((s) => `<span>${esc(sessionLabel(s, settings.periods))}</span>`).join('')}</div>
           </div>
-          <span class="muted weeks">Tuần ${c.weekFrom}–${c.weekTo}</span>
+          <span class="muted weeks">${esc(rangeText(c))}${c.source === 'gcal' ? '<br><span class="src-tag">Google</span>' : ''}</span>
         </li>`).join('')}</ul>`
         : `<div class="empty">Chưa có môn học nào.</div>`}
       <button type="button" class="btn btn-block add-course">+ Thêm môn học</button>

@@ -1,6 +1,6 @@
 // Service worker: cache toàn bộ file tĩnh để chạy offline.
 // Mỗi lần sửa file tĩnh, tăng VERSION để máy người dùng tải bản mới.
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE = `lichhoc-${VERSION}`;
 
 const ASSETS = [
@@ -15,6 +15,8 @@ const ASSETS = [
   './js/sample.js',
   './js/notify.js',
   './js/backup.js',
+  './js/ics.js',
+  './js/gcal-import.js',
   './js/ui/dom.js',
   './js/ui/today.js',
   './js/ui/courses.js',
@@ -24,6 +26,7 @@ const ASSETS = [
   './js/ui/deadline-form.js',
   './js/ui/event-form.js',
   './js/ui/week.js',
+  './js/ui/gcal-sheet.js',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/icon-maskable-512.png',

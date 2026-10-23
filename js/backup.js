@@ -62,16 +62,50 @@ const int = (v, min, max) => (Number.isInteger(v) && v >= min && v <= max ? v : 
 const remind = (v) => (Array.isArray(v) ? [...new Set(v.filter((m) => VALID_REMIND.includes(m)))] : []);
 const id = (v) => (typeof v === 'string' && v && v.length <= 100 ? v : db.uid());
 const sample = (x) => (x.sample === true ? { sample: true } : {});
+const dates = (v) => (Array.isArray(v) ? [...new Set(v.filter((d) => YMD.test(d)))].sort() : []);
+
+/** Chuỗi lặp nhập từ Google (xem schedule.js). */
+function cleanRec(r) {
+  if (!r || (r.freq !== 'WEEKLY' && r.freq !== 'DAILY') || !YMD.test(r.start)) return null;
+  const byday = Array.isArray(r.byday) ? [...new Set(r.byday.filter((d) => int(d, 1, 7)))].sort() : [];
+  if (r.freq === 'WEEKLY' && !byday.length) return null;
+  const extra = Array.isArray(r.extra) ? r.extra
+    .filter((x) => YMD.test(x?.date) && HHMM.test(x.start) && HHMM.test(x.end) && x.end > x.start)
+    .map((x) => ({ date: x.date, start: x.start, end: x.end, location: str(x.location, 100) })) : [];
+  return {
+    freq: r.freq, interval: int(r.interval, 1, 52) ?? 1, byday, wkst: r.wkst === 7 ? 7 : 1,
+    start: r.start, until: YMD.test(r.until) ? r.until : null, exdates: dates(r.exdates), extra,
+  };
+}
+
+/** Thông tin nguồn Google Calendar (để nhập lại cập nhật đúng mục). */
+function googleMeta(x) {
+  if (x.source !== 'gcal') return {};
+  const meta = { source: 'gcal', calendar: str(x.calendar, 200) };
+  if (typeof x.gcalUid === 'string') meta.gcalUid = x.gcalUid.slice(0, 500);
+  if (Array.isArray(x.gcalUids)) meta.gcalUids = x.gcalUids.filter((u) => typeof u === 'string').map((u) => u.slice(0, 500));
+  return meta;
+}
 
 function cleanSession(s) {
   const weekday = int(s?.weekday, 1, 7);
   if (!weekday) return null;
+  const extra = {
+    ...(str(s.label, 20) ? { label: str(s.label, 20) } : {}),
+    ...(str(s.room, 100) ? { room: str(s.room, 100) } : {}),
+  };
+  if (s.rec) {
+    const rec = cleanRec(s.rec);
+    if (!rec || !HHMM.test(s.start) || !HHMM.test(s.end) || s.end <= s.start) return null;
+    return { weekday, mode: 'time', start: s.start, end: s.end, ...extra, rec,
+      ...(typeof s.gcalUid === 'string' ? { gcalUid: s.gcalUid.slice(0, 500) } : {}) };
+  }
   if (s.mode === 'period') {
     const periodFrom = int(s.periodFrom, 1, 30);
     const periodTo = int(s.periodTo, 1, 30);
-    return periodFrom && periodTo && periodTo >= periodFrom ? { weekday, mode: 'period', periodFrom, periodTo } : null;
+    return periodFrom && periodTo && periodTo >= periodFrom ? { weekday, mode: 'period', periodFrom, periodTo, ...extra } : null;
   }
-  return HHMM.test(s.start) && HHMM.test(s.end) && s.end > s.start ? { weekday, mode: 'time', start: s.start, end: s.end } : null;
+  return HHMM.test(s.start) && HHMM.test(s.end) && s.end > s.start ? { weekday, mode: 'time', start: s.start, end: s.end, ...extra } : null;
 }
 
 function cleanCourse(c) {
@@ -83,7 +117,7 @@ function cleanCourse(c) {
   return {
     id: id(c.id), name, room: str(c.room, 100), teacher: str(c.teacher, 100),
     color: HEX.test(c.color) ? c.color : COURSE_COLORS[0],
-    weekFrom, weekTo, sessions, remind: remind(c.remind), ...sample(c),
+    weekFrom, weekTo, sessions, remind: remind(c.remind), ...sample(c), ...googleMeta(c),
   };
 }
 
@@ -104,8 +138,12 @@ function cleanEvent(e) {
   if (!title || !HHMM.test(e.start) || !HHMM.test(e.end) || e.end <= e.start) return null;
   const base = {
     id: id(e.id), title, type: EVENT_TYPES[e.type] ? e.type : 'personal',
-    location: str(e.location, 200), start: e.start, end: e.end, remind: remind(e.remind), ...sample(e),
+    location: str(e.location, 200), start: e.start, end: e.end, remind: remind(e.remind), ...sample(e), ...googleMeta(e),
   };
+  if (e.repeat === 'rec') {
+    const rec = cleanRec(e.rec);
+    return rec ? { ...base, repeat: 'rec', rec, weekday: rec.byday[0] || 1 } : null;
+  }
   if (e.repeat === 'weekly') {
     const weekday = int(e.weekday, 1, 7);
     return weekday ? { ...base, repeat: 'weekly', weekday } : null;

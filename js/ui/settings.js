@@ -6,6 +6,8 @@ import * as notify from '../notify.js';
 import { exportData, parseBackup, importData } from '../backup.js';
 import { mondayOf, fmtDate, minutesOf, todayKey, weekNumber, dateKey, diffDays, timeOf } from '../time.js';
 import { hasSampleData, clearSampleData } from '../sample.js';
+import { importCalendarFiles } from './gcal-sheet.js';
+import { removeAllImported } from '../gcal-import.js';
 
 const NOTIFY_TEXT = {
   granted: 'Đã bật. Thông báo hiện khi app đang mở hoặc còn chạy nền.',
@@ -29,6 +31,7 @@ export async function renderSettings(root, ctx) {
   const sample = await hasSampleData();
   const week = weekNumber(todayKey(), settings.semesterStart);
   const nState = notify.status();
+  const imported = ctx.data.courses.filter((c) => c.source === 'gcal').length + ctx.data.events.filter((e) => e.source === 'gcal').length;
   const stale = !settings.lastBackup || diffDays(todayKey(), dateKey(settings.lastBackup)) > 14;
 
   const periodRow = (p, i) => `
@@ -75,6 +78,30 @@ export async function renderSettings(root, ctx) {
         </label>
         <p class="hint">iOS có thể tự xóa dữ liệu web app khi máy thiếu bộ nhớ hoặc lâu không mở.
           Hãy lưu file sao lưu vào app Tệp / iCloud Drive định kỳ. Khôi phục sẽ <strong>thay thế</strong> toàn bộ dữ liệu hiện tại.</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Google Calendar</h2>
+      <div class="card-group pad">
+        <p class="hint">${settings.lastGcalImport
+          ? `Lần nhập gần nhất: ${esc(fmtDate(dateKey(settings.lastGcalImport)))} ${esc(timeOf(settings.lastGcalImport))} · ${imported} mục đang có.`
+          : 'Nhập lịch học và các lịch khác từ Google Calendar (đồng bộ một chiều, nhập lại để cập nhật).'}</p>
+        <label class="btn btn-primary btn-block file-btn">Chọn file .ics / .zip
+          <input type="file" class="gcal-import visually-hidden" tabindex="-1" multiple>
+        </label>
+        <details class="howto">
+          <summary>Lấy file lịch thế nào?</summary>
+          <ol>
+            <li><strong>Trên máy tính:</strong> mở calendar.google.com → ⚙ Cài đặt → <em>Nhập và xuất</em> → <em>Xuất</em>.
+              Google tải về một file .zip – chọn thẳng file đó ở đây (hoặc gửi sang điện thoại qua iCloud Drive / Zalo / AirDrop).</li>
+            <li><strong>Trên iPhone:</strong> trong Cài đặt Google Calendar (bản web trên máy tính) → chọn lịch →
+              <em>Địa chỉ bí mật ở định dạng iCal</em>, sao chép link và mở bằng Safari trên iPhone → Safari tải file
+              <em>basic.ics</em> vào app Tệp → chọn file đó ở đây. Lần sau chỉ cần mở lại link đó để lấy bản mới.
+              Đừng chia sẻ link bí mật này cho người khác.</li>
+          </ol>
+        </details>
+        ${imported ? '<button type="button" class="btn btn-danger btn-block gcal-clear">Xóa dữ liệu đã nhập từ Google</button>' : ''}
       </div>
     </section>
 
@@ -152,6 +179,20 @@ export async function renderSettings(root, ctx) {
       console.error(err);
       alert('Không khôi phục được: ' + err.message);
     }
+  });
+
+  // ----- Google Calendar -----
+  root.querySelector('.gcal-import').addEventListener('change', async (e) => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    if (files.length) await importCalendarFiles(ctx, files);
+  });
+  root.querySelector('.gcal-clear')?.addEventListener('click', async () => {
+    if (!confirm(`Xóa ${imported} môn học / sự kiện đã nhập từ Google Calendar?
+Deadline gắn với các môn này được giữ lại.`)) return;
+    await removeAllImported();
+    toast('Đã xóa dữ liệu đã nhập');
+    ctx.reload();
   });
 
   // ----- Bảng giờ -----

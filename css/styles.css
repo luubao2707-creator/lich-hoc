@@ -483,3 +483,25 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .type-pick input:checked + span { border-color: var(--c); background: color-mix(in srgb, var(--c) 16%, var(--surface)); }
 .type-pick input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 form[data-repeat="once"] .only-weekly, form[data-repeat="weekly"] .only-once { display: none; }
+
+/* ===== Nhập từ Google Calendar ===== */
+.notice {
+  padding: 12px 14px; border-radius: 12px; font-size: 15px; line-height: 1.45;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.ro-sessions { margin: 0; padding: 12px 14px 12px 32px; background: var(--surface); border-radius: 12px; color: var(--text); font-weight: 500; font-size: 15px; display: grid; gap: 4px; }
+form[data-google] .manual-only { display: none; }
+.src-tag { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--accent); }
+
+.howto summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; color: var(--accent); font-weight: 600; font-size: 15px; }
+.howto ol { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 8px; font-size: 14px; color: var(--muted); }
+.howto strong { color: var(--text); }
+
+.imp-h { font-size: 15px; font-weight: 700; color: var(--muted); margin: 6px 2px -4px; text-transform: uppercase; letter-spacing: 0.03em; }
+.imp-h-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: -6px; }
+.imp-h-row .imp-h { margin: 0 2px; }
+.imp-row { display: flex; align-items: center; gap: 10px; padding: 10px 10px 10px 14px; }
+.imp-row + .imp-row { border-top: 1px solid var(--line); }
+.imp-main { flex: 1; min-width: 0; }
+.imp-row select { width: 118px; flex-shrink: 0; min-height: 44px; font-size: 15px; padding: 6px 26px 6px 10px; background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%; }

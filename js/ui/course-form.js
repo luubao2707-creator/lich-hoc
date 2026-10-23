@@ -3,11 +3,15 @@
 import { esc, openSheet, toast, remindField, readRemind } from './dom.js';
 import * as db from '../db.js';
 import { WEEKDAY_LONG, weekdayOf, todayKey, minutesOf } from '../time.js';
-import { COURSE_COLORS } from '../schedule.js';
+import { COURSE_COLORS, sessionLabel, courseDateRange } from '../schedule.js';
+import { rememberSkip } from '../gcal-import.js';
+import { fmtDate } from '../time.js';
 
 export function openCourseForm(ctx, course = null) {
   const { periods } = ctx.data.settings;
   const isNew = !course;
+  const fromGoogle = course?.source === 'gcal'; // lịch nhập từ Google: chỉ sửa màu, GV, nhắc việc
+  const ro = fromGoogle ? 'readonly' : '';
   const c = course || {
     name: '', room: '', teacher: '', weekFrom: 1, weekTo: 15,
     color: COURSE_COLORS[ctx.data.courses.length % COURSE_COLORS.length],
@@ -45,9 +49,10 @@ export function openCourseForm(ctx, course = null) {
     title: isNew ? 'Thêm môn học' : 'Sửa môn học',
     body: `
       <form class="form" novalidate>
-        <label class="field">Tên môn<input name="name" required autocomplete="off" value="${esc(c.name)}" placeholder="vd: Giải tích 1"></label>
+        ${fromGoogle ? googleNotice(c) : ''}
+        <label class="field">Tên môn<input name="name" required autocomplete="off" value="${esc(c.name)}" placeholder="vd: Giải tích 1" ${ro}></label>
         <div class="pair">
-          <label class="field">Phòng<input name="room" autocomplete="off" value="${esc(c.room)}" placeholder="B1-203"></label>
+          <label class="field">Phòng<input name="room" autocomplete="off" value="${esc(c.room)}" placeholder="B1-203" ${ro}></label>
           <label class="field">Giảng viên<input name="teacher" autocomplete="off" value="${esc(c.teacher)}"></label>
         </div>
 
@@ -59,13 +64,18 @@ export function openCourseForm(ctx, course = null) {
           </div>
         </fieldset>
 
+        ${fromGoogle ? `
+        <fieldset class="field">
+          <legend>Lịch học</legend>
+          <ul class="ro-sessions">${c.sessions.map((s) => `<li>${esc(sessionLabel(s, periods))}${s.room && s.room !== c.room ? ` · ${esc(s.room)}` : ''}</li>`).join('')}</ul>
+        </fieldset>` : `
         <fieldset class="field">
           <legend>Lịch học hằng tuần</legend>
           <div class="sessions-edit">${c.sessions.map(sessionHTML).join('')}</div>
           <button type="button" class="btn btn-ghost add-session">+ Thêm buổi</button>
-        </fieldset>
+        </fieldset>`}
 
-        <fieldset class="field">
+        <fieldset class="field" ${fromGoogle ? 'hidden' : ''}>
           <legend>Khoảng tuần học</legend>
           <div class="pair">
             <label>Từ tuần<input type="number" name="weekFrom" inputmode="numeric" min="1" max="60" value="${c.weekFrom}"></label>
@@ -85,11 +95,11 @@ export function openCourseForm(ctx, course = null) {
   const list = form.querySelector('.sessions-edit');
   const errEl = form.querySelector('.form-error');
 
-  form.querySelector('.add-session').addEventListener('click', () => {
+  form.querySelector('.add-session')?.addEventListener('click', () => {
     const last = readSessions(list).at(-1);
     list.insertAdjacentHTML('beforeend', sessionHTML(last ? { ...last, weekday: (last.weekday % 7) + 1 } : { weekday: 1, mode: 'period' }));
   });
-  list.addEventListener('click', (e) => {
+  list?.addEventListener('click', (e) => {
     const set = e.target.closest('[data-set]');
     if (set) set.closest('.session').dataset.mode = set.dataset.set;
     if (e.target.closest('.remove-session')) {
@@ -103,6 +113,7 @@ export function openCourseForm(ctx, course = null) {
     const msg = `Xóa môn "${c.name}"?` + (linked ? `\n${linked} deadline liên quan sẽ được giữ lại nhưng bỏ liên kết môn.` : '');
     if (!confirm(msg)) return;
     await db.remove('courses', c.id);
+    if (fromGoogle) await rememberSkip(c.gcalUids || []); // không thêm lại ở lần nhập sau
     for (const d of ctx.data.deadlines.filter((x) => x.courseId === c.id)) await db.put('deadlines', { ...d, courseId: null });
     sheet.close();
     toast('Đã xóa môn học');
@@ -121,7 +132,7 @@ export function openCourseForm(ctx, course = null) {
       color: fd.get('color') || COURSE_COLORS[0],
       weekFrom: parseInt(fd.get('weekFrom'), 10),
       weekTo: parseInt(fd.get('weekTo'), 10),
-      sessions: readSessions(list),
+      sessions: fromGoogle ? c.sessions : readSessions(list),
       remind: readRemind(fd),
     };
     const err = validate(next, periods);
@@ -137,6 +148,13 @@ export function openCourseForm(ctx, course = null) {
     toast(isNew ? 'Đã thêm môn học' : 'Đã lưu');
     ctx.reload();
   });
+}
+
+function googleNotice(c) {
+  const r = courseDateRange(c);
+  const range = r ? ` · ${fmtDate(r.from)}${r.to ? `–${fmtDate(r.to)}` : ''}` : '';
+  return `<p class="notice">Nhập từ Google Calendar${esc(range)}. Muốn đổi giờ, phòng hay ngày học, hãy sửa trên Google
+    rồi nhập lại. Ở đây bạn có thể đặt màu, giảng viên và nhắc việc.</p>`;
 }
 
 function readSessions(list) {

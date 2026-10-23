@@ -178,7 +178,7 @@ function gridHTML(perDay, today) {
         style="--c:${esc(it.color)};top:${top}px;height:${h}px;left:calc(${(col / cols) * 100}% + 1px);width:calc(${100 / cols}% - 2px)"
         aria-label="${esc(`${it.title}, ${timeOf(it.startMs)}–${timeOf(it.endMs)}`)}">
         <strong>${esc(it.title)}</strong>
-        ${it.kind === 'course' && it.ref.room ? `<small>${esc(it.ref.room)}</small>` : ''}
+        ${it.kind === 'course' && it.sub ? `<small>${esc(it.sub.split(' · ')[0])}</small>` : ''}
         ${it.kind === 'event' && it.ref.type === 'exam' ? '<small>Thi</small>' : ''}
       </button>`;
     }).join('');

@@ -3,7 +3,8 @@
 import { esc, openSheet, toast, remindField, readRemind } from './dom.js';
 import * as db from '../db.js';
 import { WEEKDAY_LONG, weekdayOf, todayKey, minutesOf, fmtDate } from '../time.js';
-import { EVENT_TYPES } from '../schedule.js';
+import { EVENT_TYPES, describeRec } from '../schedule.js';
+import { rememberSkip } from '../gcal-import.js';
 
 /** Giờ tròn kế tiếp, vd 09:37 → 10:00 (tối đa 22:00). */
 function nextHour() {
@@ -21,6 +22,7 @@ function plusMinutes(hhmm, n) {
  */
 export function openEventForm(ctx, event = null, preset = {}) {
   const isNew = !event;
+  const fromGoogle = event?.source === 'gcal'; // nhập từ Google: chỉ đổi loại và nhắc việc
   const date = preset.date || todayKey();
   const start = preset.start || nextHour();
   const e = event || {
@@ -31,7 +33,10 @@ export function openEventForm(ctx, event = null, preset = {}) {
   const sheet = openSheet({
     title: isNew ? 'Thêm sự kiện' : 'Sửa sự kiện',
     body: `
-      <form class="form" novalidate data-repeat="${e.repeat}">
+      <form class="form" novalidate data-repeat="${e.repeat}" ${fromGoogle ? 'data-google' : ''}>
+        ${fromGoogle ? `<p class="notice">Nhập từ Google Calendar: <strong>${esc(e.title)}</strong><br>
+          ${esc(e.repeat === 'rec' ? describeRec(e.rec) : fmtDate(e.date))} · ${esc(e.start)}–${esc(e.end)}${e.location ? ` · ${esc(e.location)}` : ''}<br>
+          Muốn đổi giờ hay ngày, hãy sửa trên Google rồi nhập lại. Ở đây bạn có thể đổi loại và nhắc việc.</p>` : ''}
         <fieldset class="field">
           <legend>Loại</legend>
           <div class="type-pick">
@@ -40,6 +45,7 @@ export function openEventForm(ctx, event = null, preset = {}) {
           </div>
         </fieldset>
 
+        <div class="manual-only">
         <label class="field">Tên sự kiện<input name="title" required autocomplete="off" value="${esc(e.title)}" placeholder="vd: Họp nhóm đồ án"></label>
         <label class="field">Địa điểm<input name="location" autocomplete="off" value="${esc(e.location)}" placeholder="Phòng, link họp…"></label>
 
@@ -63,6 +69,8 @@ export function openEventForm(ctx, event = null, preset = {}) {
           <label class="field">Kết thúc<input type="time" name="end" value="${esc(e.end)}"></label>
         </div>
 
+        </div>
+
         ${remindField(e.remind || [])}
 
         <p class="form-error" hidden></p>
@@ -84,9 +92,10 @@ export function openEventForm(ctx, event = null, preset = {}) {
   });
 
   form.querySelector('.delete')?.addEventListener('click', async () => {
-    const what = e.repeat === 'weekly' ? `sự kiện lặp hằng ${WEEKDAY_LONG[e.weekday]}` : `sự kiện ngày ${fmtDate(e.date)}`;
+    const what = fromGoogle ? 'nhập từ Google, lần nhập sau sẽ bỏ qua' : e.repeat === 'weekly' ? `sự kiện lặp hằng ${WEEKDAY_LONG[e.weekday]}` : `sự kiện ngày ${fmtDate(e.date)}`;
     if (!confirm(`Xóa "${e.title}" (${what})?`)) return;
     await db.remove('events', e.id);
+    if (fromGoogle) await rememberSkip([e.gcalUid]);
     sheet.close();
     toast('Đã xóa sự kiện');
     ctx.reload();
@@ -95,6 +104,14 @@ export function openEventForm(ctx, event = null, preset = {}) {
   form.addEventListener('submit', async (ev) => {
     ev.preventDefault();
     const fd = new FormData(form);
+    if (fromGoogle) {
+      const type = EVENT_TYPES[fd.get('type')] ? fd.get('type') : e.type;
+      await db.put('events', { ...e, type, remind: readRemind(fd) });
+      sheet.close();
+      toast('Đã lưu');
+      ctx.reload();
+      return;
+    }
     const repeat = fd.get('repeat') === 'weekly' ? 'weekly' : 'once';
     const next = {
       ...e,

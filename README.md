@@ -17,6 +17,8 @@ js/schedule.js      tính lịch trong ngày, deadline sắp đến hạn
 js/sample.js        dữ liệu mẫu + xóa dữ liệu mẫu
 js/notify.js        nhắc việc: tính giờ nhắc, xin quyền, hiện thông báo
 js/backup.js        xuất / nhập JSON (kiểm tra dữ liệu khi nhập)
+js/ics.js           đọc file .ics / .zip của Google Calendar (lặp, múi giờ, buổi hủy / dời)
+js/gcal-import.js   đoán loại, gộp môn LT/BT/TN, ghi dữ liệu nhập từ Google
 js/ui/*.js          các màn hình (today, week, courses, deadlines, settings) và form (course, deadline, event)
 ```
 
@@ -40,3 +42,10 @@ py -m http.server 8000
 - Web app không thể tự hẹn giờ khi đã bị tắt hẳn (cần máy chủ Web Push). Lời nhắc chạy khi app đang mở /
   còn chạy nền; mở lại app sẽ nhắc bù các lời nhắc bị lỡ trong 6 giờ gần nhất.
 - Chưa có quyền thông báo → lời nhắc hiện dạng banner bên trong app.
+
+## Nhập từ Google Calendar
+
+Cài đặt → Google Calendar → chọn file `.ics` hoặc `.zip` (Google Calendar → Cài đặt → Nhập và xuất → Xuất).
+Đồng bộ một chiều: nhập lại để cập nhật, app giữ màu / giảng viên / nhắc việc đã đặt và xóa mục không còn trên Google.
+Hỗ trợ lặp hằng ngày / hằng tuần (kể cả N tuần/lần, UNTIL, COUNT), buổi bị hủy (EXDATE) và buổi bị dời (RECURRENCE-ID).
+Chưa hỗ trợ sự kiện cả ngày và lặp theo tháng / năm.
